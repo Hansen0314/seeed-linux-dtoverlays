@@ -133,9 +133,15 @@ BASE_SRC_FOLDER := $(basename $(patsubst $(MOD_PATH)/%, %, $(SRC_FOLDER)))
 BASE_SRC_FOLDER := $(filter-out $(MOD_PATH), $(BASE_SRC_FOLDER))
 BASE_SRC_FOLDER := $(filter-out grove-led, $(BASE_SRC_FOLDER))
 BASE_SRC_FOLDER := $(filter-out grove-button, $(BASE_SRC_FOLDER))
+ifneq ($(CUSTOM_MOD_FILTER_OUT),)
+BASE_SRC_FOLDER := $(filter-out $(CUSTOM_MOD_FILTER_OUT), $(BASE_SRC_FOLDER))
+endif
+ifneq ($(CUSTOM_MOD_LIST),)
+BASE_SRC_FOLDER := $(CUSTOM_MOD_LIST)
+endif
 
 uname_r = $(shell uname -r)
-KBUILD ?= /usr/src/linux-headers-$(uname_r)
+KBUILD ?= /lib/modules/$(uname_r)/build
 KO_DIR ?= /lib/modules/$(uname_r)/extra/seeed
 
 make_options="CROSS_COMPILE=${CC} KDIR=${x86_dir}/KERNEL"
@@ -153,6 +159,7 @@ install_%:
 	$(Q)$(MAKE) PLATFORM=$* install_arch
 	mkdir -p /lib/modules/$(uname_r)/extra/seeed || true
 	@for dir in ${BASE_SRC_FOLDER}; do cp $(MOD_PATH)/$$dir/*.ko $(KO_DIR) ||exit; done
+	@which depmod >/dev/null 2>&1 && depmod -a || true
 
 ifeq ($(PLATFORM),)
 
@@ -243,10 +250,9 @@ FORCE:
 
 .PHONY: $(PHONY)
 
-
-KO_LIST := $(shell ls $(KO_DIR))
-DTBO_LIST := $(shell ls overlays/bb/*.dtbo)
 builddeb:
+	KO_LIST := $(shell ls $(KO_DIR))
+	DTBO_LIST := $(shell ls overlays/bb/*.dtbo)
 	cp debian/control control
 	cp $(KO_DIR)/*.ko .
 	echo "Package: seeed-linux-dtoverlay-bb-${uname_r}" >> control
